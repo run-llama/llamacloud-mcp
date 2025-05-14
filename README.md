@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/run-llama-llamacloud-mcp-badge.png)](https://mseep.ai/app/run-llama-llamacloud-mcp)
+
 # LlamaIndex MCP demos
 
 This repo demonstrates both how to create an MCP server using LlamaCloud and how to use LlamaIndex as an MCP client.
