@@ -1,19 +1,7 @@
-[tool.poetry]
+[project]
 name = "llamacloud-mcp"
 version = "0.1.0"
-description = ""
-authors = ["Laurie Voss <github@seldo.com>"]
+description = "Add your description here"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.11"
-llama-index-llms-openai = "^0.3.28"
-llama-index-indices-managed-llama-cloud = "^0.6.9"
-mcp = "^1.6.0"
-python-dotenv = "^1.1.0"
-llama-index-tools-mcp = "^0.1.0"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.13"
+dependencies = ["llama-index-llms-openai>=0.3.28","llama-index-indices-managed-llama-cloud>=0.6.9","mcp[cli]>=1.6.0","python-dotenv>=1.1.0","llama-index-tools-mcp>=0.1.0","llama-cloud-services"]
