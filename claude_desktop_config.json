@@ -9,6 +9,14 @@
                 "python",
                 "$YOURPATH/llamacloud-mcp/mcp-server.py"
             ]
+        },
+        "filesystem": {
+        "command": "npx",
+        "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "your directory you want filesystem tool to have access to"
+            ]
         }
     }
 }
