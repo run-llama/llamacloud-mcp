@@ -1,8 +1,80 @@
 # LlamaIndex MCP demos
 
-This repo demonstrates both how to create an MCP server using LlamaCloud and how to use LlamaIndex as an MCP client.
+`llamacloud-mcp` is a tool that allows you to use LlamaCloud as an MCP server. It can be used to query LlamaCloud indexes and extract data from files.
 
-## LlamaCloud as an MCP server
+It allows for:
+- specifying one or more indexes to use for context retrieval
+- specifying one or more extract agents to use for data extraction
+- configuring project and organization ids
+- configuring the transport to use for the MCP server (stdio, sse, streamable-http)
+
+## Getting Started
+
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
+2. Run `uvx llamacloud-mcp@latest --help` to see the available options.
+3. Configure your MCP client to use the `llamacloud-mcp` server. You can either launch the server directly with `uvx llamacloud-mcp@latest` or use a `claude_desktop_config.json` file to connect with claude desktop.
+
+Sample `claude_desktop_config.json` file:
+
+```json
+{
+    "mcpServers": {
+        "llama_index_docs_server": {
+            "command": "uvx",
+            "args": [
+                "llamacloud-mcp@latest",
+                "--indexes",
+                "llama-index-docs:LlamaIndex documentation",
+                "--extract-agents",
+                "llama-index-docs-extract:LlamaIndex documentation extract agent",
+                "--api-key",
+                "<your-api-key>",
+                "--transport",
+                "stdio"
+            ]
+        },
+        "filesystem": {
+        "command": "npx",
+        "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "<your directory you want filesystem tool to have access to>"
+            ]
+        }
+    }
+}
+```
+
+### Configure Claude Desktop
+
+1. Install [Claude Desktop](https://claude.ai/download)
+2. In the menu bar choose `Claude` -> `Settings` -> `Developer` -> `Edit Config`. This will show up a config file that you can edit in your preferred text editor.
+3. You'll want your config to look something like this (make sure to replace `$YOURPATH` with the path to the repository):
+
+```json
+{
+    "mcpServers": {
+        "llama_index_docs_server": {
+            "command": "poetry",
+            "args": [
+                "--directory",
+                "$YOURPATH/llamacloud-mcp",
+                "run",
+                "python",
+                "$YOURPATH/llamacloud-mcp/mcp-server.py"
+            ]
+        }
+    }
+}
+```
+
+Make sure to **restart Claude Desktop** after configuring the file.
+
+Now you're ready to query! You should see a tool icon with your server listed underneath the query box in Claude Desktop, like this:
+
+![](./claude.png)
+
+## LlamaCloud as an MCP server From Scratch
 
 To provide a local MCP server that can be used by a client like Claude Desktop, you can use `mcp-server.py`. You can use this to provide a tool that will use RAG to provide Claude with up-to-the-second private information that it can use to answer questions. You can provide as many of these tools as you want.
 
@@ -54,36 +126,6 @@ if __name__ == "__main__":
 ```
 
 Note the `stdio` transport, used for communicating to Claude Desktop.
-
-
-### Configure Claude Desktop
-
-1. Install [Claude Desktop](https://claude.ai/download)
-2. In the menu bar choose `Claude` -> `Settings` -> `Developer` -> `Edit Config`. This will show up a config file that you can edit in your preferred text editor.
-3. You'll want your config to look something like this (make sure to replace `$YOURPATH` with the path to the repository):
-
-```json
-{
-    "mcpServers": {
-        "llama_index_docs_server": {
-            "command": "poetry",
-            "args": [
-                "--directory",
-                "$YOURPATH/llamacloud-mcp",
-                "run",
-                "python",
-                "$YOURPATH/llamacloud-mcp/mcp-server.py"
-            ]
-        }
-    }
-}
-```
-
-Make sure to **restart Claude Desktop** after configuring the file. 
-
-Now you're ready to query! You should see a tool icon with your server listed underneath the query box in Claude Desktop, like this:
-
-![](./claude.png)
 
 ## LlamaIndex as an MCP client
 

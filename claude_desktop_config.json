@@ -15,7 +15,7 @@
                 "--api-key",
                 "<your-api-key>",
                 "--transport",
-                "sse"
+                "stdio"
             ]
         },
         "filesystem": {
