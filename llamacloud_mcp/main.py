@@ -21,7 +21,7 @@ def make_index_tool(
                 project_id=project_id,
                 organization_id=org_id,
             )
-            response = index.as_query_engine().query(query)
+            response = await index.as_retriever().aretrieve(query)
             return str(response)
         except Exception as e:
             await ctx.error(f"Error querying index: {str(e)}")
@@ -44,7 +44,7 @@ def make_extract_tool(
                 project_id=project_id,
             )
             extract_agent = llama_extract.get_agent(name=agent_name)
-            result = extract_agent.extract(file_path)
+            result = await extract_agent.aextract(file_path)
             return str(result)
         except Exception as e:
             await ctx.error(f"Error extracting data: {str(e)}")
