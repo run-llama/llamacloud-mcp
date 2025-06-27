@@ -1,13 +1,21 @@
 {
     "mcpServers": {
         "llama_index_docs_server": {
-            "command": "poetry",
+            "command": "uvx",
             "args": [
-                "--directory",
-                "$YOURPATH/llamacloud-mcp",
-                "run",
-                "python",
-                "$YOURPATH/llamacloud-mcp/mcp-server.py"
+                "llamacloud-mcp@latest",
+                "--indexes",
+                "llama-index-docs:LlamaIndex documentation",
+                "--extract-agents",
+                "llama-index-docs-extract:LlamaIndex documentation extract agent",
+                "--project-id",
+                "<your-project-id>",
+                "--org-id",
+                "<your-org-id>",
+                "--api-key",
+                "<your-api-key>",
+                "--transport",
+                "sse"
             ]
         },
         "filesystem": {
@@ -15,7 +23,7 @@
         "args": [
                 "-y",
                 "@modelcontextprotocol/server-filesystem",
-                "your directory you want filesystem tool to have access to"
+                "<your directory you want filesystem tool to have access to>"
             ]
         }
     }
