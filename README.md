@@ -3,7 +3,7 @@
 `llamacloud-mcp` is a tool that allows you to use LlamaCloud as an MCP server. It can be used to query LlamaCloud indexes and extract data from files.
 
 It allows for:
-- specifying one or more indexes to use for context retrieval
+- specifying one or more indexes to use for context retrieval.
 - specifying one or more extract agents to use for data extraction
 - configuring project and organization ids
 - configuring the transport to use for the MCP server (stdio, sse, streamable-http)
@@ -40,7 +40,8 @@ Options:
 
 1. Install [Claude Desktop](https://claude.ai/download)
 2. In the menu bar choose `Claude` -> `Settings` -> `Developer` -> `Edit Config`. This will show up a config file that you can edit in your preferred text editor.
-3. You'll want your config to look something like this (make sure to replace `$YOURPATH` with the path to the repository):
+3. Create a add the following "mcpServers" to the config file, where each `--index` is a new index tool that you define, and each `--extract-agent` is an extraction agent tool.
+4. You'll want your config to look something like this (make sure to replace `$YOURPATH` with the path to the repository):
 
 ```json
 {
