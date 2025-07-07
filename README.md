@@ -49,14 +49,16 @@ Options:
             "command": "uvx",
             "args": [
                 "llamacloud-mcp@latest",
-                "--indexes",
-                "llama-index-docs:LlamaIndex documentation",
-                "--extract-agents",
-                "llama-index-docs-extract:LlamaIndex documentation extract agent",
-                "--api-key",
-                "<your-api-key>",
-                "--transport",
-                "stdio"
+                "--index",
+                "your-index-name:Description of your index",
+                "--index",
+                "your-other-index-name:Description of your other index",
+                "--extract-agent",
+                "extract-agent-name:Description of your extract agent",
+                "--project-name",
+                "<Your LlamaCloud Project Name>",
+                "--org-id",
+                "<Your LlamaCloud Org ID>"
             ]
         },
         "filesystem": {
