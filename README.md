@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/run-llama-llamacloud-mcp-badge.png)](https://mseep.ai/app/run-llama-llamacloud-mcp)
+
 # LlamaIndex MCP demos
 
 `llamacloud-mcp` is a tool that allows you to use LlamaCloud as an MCP server. It can be used to query LlamaCloud indexes and extract data from files.
