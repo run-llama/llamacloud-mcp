@@ -59,7 +59,9 @@ Options:
                 "--project-name",
                 "<Your LlamaCloud Project Name>",
                 "--org-id",
-                "<Your LlamaCloud Org ID>"
+                "<Your LlamaCloud Org ID>",
+                "--api-key",
+                "<Your LlamaCloud API Key>"
             ]
         },
         "filesystem": {
