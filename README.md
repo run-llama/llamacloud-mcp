@@ -2,6 +2,10 @@
 
 `llamacloud-mcp` is a tool that allows you to use LlamaCloud as an MCP server. It can be used to query LlamaCloud indexes and extract data from files.
 
+<a href="https://glama.ai/mcp/servers/@run-llama/llamacloud-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@run-llama/llamacloud-mcp/badge" alt="LlamaCloud Server MCP server" />
+</a>
+
 It allows for:
 - specifying one or more indexes to use for context retrieval.
 - specifying one or more extract agents to use for data extraction
