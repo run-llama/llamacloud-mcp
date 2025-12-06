@@ -1,186 +1,171 @@
-# LlamaIndex MCP demos
+# llamacloud-mcp (CLI-first fork)
 
-`llamacloud-mcp` is a tool that allows you to use LlamaCloud as an MCP server. It can be used to query LlamaCloud indexes and extract data from files.
+> Run LlamaCloud indexes and extract agents as Model Context Protocol (MCP) tools directly from Claude Code or any other CLI-friendly client.
 
-It allows for:
-- specifying one or more indexes to use for context retrieval.
-- specifying one or more extract agents to use for data extraction
-- configuring project and organization ids
-- configuring the transport to use for the MCP server (stdio, sse, streamable-http)
+This repository is a **personal fork and refactor** of [run-llama/llamacloud-mcp](https://github.com/run-llama/llamacloud-mcp). The original project focused on Claude Desktop demos; this fork prioritizes terminal-first workflows so that MCP tools are easy to run from Claude Code, VS Code, or headless automation.
 
-## Getting Started
+Desktop guidance is still available in the appendix, but everything else assumes a CLI environment.
 
-1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-2. Run `uvx llamacloud-mcp@latest --help` to see the available options.
-3. Configure your MCP client to use the `llamacloud-mcp` server. You can either launch the server directly with `uvx llamacloud-mcp@latest` or use a `claude_desktop_config.json` file to connect with claude desktop.
+## Highlights of this fork
 
-### Usage
+- CLI-first documentation and examples tailored to Claude Code.
+- Cached LlamaCloud clients so every tool invocation is faster and kinder to rate limits.
+- Explicit host/port/path flags for SSE and streamable HTTP transports.
+- Safety checks that ensure at least one tool is registered before the server starts.
+- A recommended testing workflow (pytest via `uv`) to keep future changes healthy.
+
+## Requirements
+
+| Requirement | Why |
+|-------------|-----|
+| Python 3.10+ | matches LlamaIndex + uv support |
+| [uv](https://docs.astral.sh/uv/getting-started/installation/) | dependency + CLI runner |
+| LlamaCloud project/org + API key | authenticates index + extract agent access |
+| (Optional) Claude Code or another MCP-compatible CLI | consumes the tools you expose |
+
+Set the following environment variable (via `.env` or your shell):
 
 ```bash
-% uvx llamacloud-mcp@latest --help
-Usage: llamacloud-mcp [OPTIONS]
-
-Options:
-  --index TEXT                    Index definition in the format
-                                  name:description. Can be used multiple
-                                  times.
-  --extract-agent TEXT            Extract agent definition in the format
-                                  name:description. Can be used multiple
-                                  times.
-  --project-id TEXT               Project ID for LlamaCloud
-  --org-id TEXT                   Organization ID for LlamaCloud
-  --transport [stdio|sse|streamable-http]
-                                  Transport to run the MCP server on. One of
-                                  "stdio", "sse", "streamable-http".
-  --api-key TEXT                  API key for LlamaCloud
-  --help                          Show this message and exit.
+export LLAMA_CLOUD_API_KEY=<your key>
 ```
 
-### Configure Claude Desktop
+You can still pass `--api-key` explicitly when launching the CLI.
 
-1. Install [Claude Desktop](https://claude.ai/download)
-2. In the menu bar choose `Claude` -> `Settings` -> `Developer` -> `Edit Config`. This will show up a config file that you can edit in your preferred text editor.
-3. Create a add the following "mcpServers" to the config file, where each `--index` is a new index tool that you define, and each `--extract-agent` is an extraction agent tool.
-4. You'll want your config to look something like this (make sure to replace `$YOURPATH` with the path to the repository):
+## Installing / Running locally
 
-```json
+Clone this fork and install dependencies once:
+
+```bash
+git clone git@github.com:ronamosa/llamacloud-mcp.git
+cd llamacloud-mcp
+uv venv
+uv pip install .
+```
+
+### Defining tools
+
+Each `--index` or `--extract-agent` flag accepts `name:description`. The `name` becomes part of the tool ID (`query_<name>` / `extract_<name>`), so keep it alphanumeric and short.
+
+```bash
+uv run llamacloud-mcp \
+  --index product-docs:"Search curated product documentation" \
+  --index eng-rfcs:"Retrieve engineering RFCs" \
+  --extract-agent pricing-parser:"Extract key pricing terms from PDFs" \
+  --project-id 123e4567-e89b-12d3-a456-426614174000 \
+  --org-id 42a1c403-6ac1-40df-9321-5db0a4979a36 \
+  --transport stdio
+```
+
+When using Claude Code, add an MCP server entry that shells out to the command you prefer (stdio is the simplest for CLI usage). Because clients call the same binary repeatedly, caching the LlamaCloud retrievers/agents inside this refactor significantly reduces cold-start latency.
+
+### Transport options
+
+The CLI now exposes host/port/path settings so you can intentionally choose a transport:
+
+| Flag | Default | Notes |
+|------|---------|-------|
+| `--transport` | `stdio` | `stdio`, `sse`, or `streamable-http` |
+| `--host` | `127.0.0.1` | Binding for SSE + streamable HTTP |
+| `--port` | `8000` | SSE port; ignored for stdio |
+| `--mount-path` | `/` | Base path for HTTP modes |
+| `--sse-path` | `/sse` | SSE endpoint |
+| `--message-path` | `/messages/` | SSE message polling path |
+| `--streamable-http-path` | `/mcp` | Streamable HTTP endpoint |
+
+#### SSE (Claude Code recommended)
+
+```bash
+uv run llamacloud-mcp \
+  --transport sse \
+  --host 127.0.0.1 \
+  --port 8765 \
+  --index product-docs:"Docs search over SSE"
+```
+
+Point Claude Code’s MCP config at `http://127.0.0.1:8765/sse`.
+
+#### Streamable HTTP
+
+Use this when your client supports the [streamable HTTP transport](https://modelcontextprotocol.io). Adjust `--streamable-http-path` if you need to reverse-proxy the endpoint.
+
+## Claude Code configuration example
+
+Add the following snippet to your Claude Code `claude_code_config.json` (or whichever file the client uses to discover MCP servers). Replace values as needed:
+
+```jsonc
 {
-    "mcpServers": {
-        "llama_index_docs_server": {
-            "command": "uvx",
-            "args": [
-                "llamacloud-mcp@latest",
-                "--index",
-                "your-index-name:Description of your index",
-                "--index",
-                "your-other-index-name:Description of your other index",
-                "--extract-agent",
-                "extract-agent-name:Description of your extract agent",
-                "--project-name",
-                "<Your LlamaCloud Project Name>",
-                "--org-id",
-                "<Your LlamaCloud Org ID>",
-                "--api-key",
-                "<Your LlamaCloud API Key>"
-            ]
-        },
-        "filesystem": {
-        "command": "npx",
-        "args": [
-                "-y",
-                "@modelcontextprotocol/server-filesystem",
-                "<your directory you want filesystem tool to have access to>"
-            ]
-        }
+  "mcpServers": {
+    "llamacloud-cli": {
+      "command": "uv",
+      "args": [
+        "run",
+        "llamacloud-mcp",
+        "--transport",
+        "sse",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8765",
+        "--index",
+        "product-docs:Search curated product documentation",
+        "--extract-agent",
+        "pricing-parser:Extract pricing terms from PDFs",
+        "--project-id",
+        "123e4567-e89b-12d3-a456-426614174000",
+        "--org-id",
+        "42a1c403-6ac1-40df-9321-5db0a4979a36"
+      ],
+      "env": {
+        "LLAMA_CLOUD_API_KEY": "<your key>"
+      }
     }
+  }
 }
 ```
 
-Make sure to **restart Claude Desktop** after configuring the file.
+Restart Claude Code after editing its config so the MCP server reloads.
 
-Now you're ready to query! You should see a tool icon with your server listed underneath the query box in Claude Desktop, like this:
+## Testing & CI workflow
 
-![](./claude.png)
+This fork does not ship a full test suite yet, but the recommended workflow is:
 
-## LlamaCloud as an MCP server From Scratch
-
-To provide a local MCP server that can be used by a client like Claude Desktop, you can use `mcp-server.py`. You can use this to provide a tool that will use RAG to provide Claude with up-to-the-second private information that it can use to answer questions. You can provide as many of these tools as you want.
-
-### Set up your LlamaCloud index
-
-1. Get a [LlamaCloud](https://cloud.llamaindex.ai/) account
-2. [Create a new index](https://docs.cloud.llamaindex.ai/llamacloud/guides/ui) with any data source you want. In our case we used [Google Drive](https://docs.cloud.llamaindex.ai/llamacloud/integrations/data_sources/google_drive) and provided a subset of the LlamaIndex documentation as a source. You could also upload documents directly to the index if you just want to test it out.
-3. Get an API key from the [LlamaCloud UI](https://cloud.llamaindex.ai/)
-
-### Set up your MCP server
-
-1. Clone this repository
-2. Create a `.env` file and add two environment variables:
-    - `LLAMA_CLOUD_API_KEY` - The API key you got in the previous step
-    - `OPENAI_API_KEY` - An OpenAI API key. This is used to power the RAG query. You can use [any other LLM](https://docs.llamaindex.ai/en/stable/understanding/using_llms/using_llms/) if you don't want to use OpenAI.
-
-Now let's look at the code. First you instantiate an MCP server:
-
-```python
-mcp = FastMCP('llama-index-server')
+```bash
+uv run pytest          # add smoke tests for CLI parsing + tool wiring
+uv run ruff check .    # optional linting once ruff is added to dependencies
 ```
 
-Then you define your tool using the `@mcp.tool()` decorator:
+When you add tests, wire them into your preferred CI (GitHub Actions, Buildkite, etc.) so every change exercises the CLI surface before merging. Running `uv run llamacloud-mcp --help` in CI is a quick sanity check that Click options stay valid.
 
-```python
-@mcp.tool()
-def llama_index_documentation(query: str) -> str:
-    """Search the llama-index documentation for the given query."""
+## Troubleshooting
 
-    index = LlamaCloudIndex(
-        name="mcp-demo-2",
-        project_name="Rando project",
-        organization_id="e793a802-cb91-4e6a-bd49-61d0ba2ac5f9",
-        api_key=os.getenv("LLAMA_CLOUD_API_KEY"),
-    )
+- **“API key not found”** – set `LLAMA_CLOUD_API_KEY` or pass `--api-key`.
+- **“Please provide at least one --index or --extract-agent option.”** – the server now fails fast to prevent running without tools.
+- **Claude Code cannot connect over SSE** – ensure the host/port is reachable from your editor and matches the config path (default `/sse`).
+- **Rate limits / slow responses** – verify you are not recreating indexes per query. This fork caches retrievers, so restarting the server is usually sufficient.
 
-    response = index.as_query_engine().query(query + " Be verbose and include code examples.")
+## Appendix A – Claude Desktop (legacy instructions)
 
-    return str(response)
+Claude Desktop still works, it’s just no longer the primary audience. Follow the CLI instructions above, then configure Desktop via `Claude → Settings → Developer → Edit Config`. Example:
+
+```json
+{
+  "mcpServers": {
+    "llamacloud-cli": {
+      "command": "uv",
+      "args": [
+        "run",
+        "llamacloud-mcp",
+        "--transport",
+        "stdio",
+        "--index",
+        "docs:Docs search"
+      ],
+      "env": {
+        "LLAMA_CLOUD_API_KEY": "<your key>"
+      }
+    }
+  }
+}
 ```
 
-Here our tool is called `llama_index_documentation`; it instantiates a LlamaCloud index called `mcp-demo-2` and then uses it as a query engine to answer the query, including some extra instructions in the prompt. You'll get instructions on how to set up your LlamaCloud index in the next section.
-
-Finally, you run the server:
-
-```python
-if __name__ == "__main__":
-    mcp.run(transport="stdio")
-```
-
-Note the `stdio` transport, used for communicating to Claude Desktop.
-
-## LlamaIndex as an MCP client
-
-LlamaIndex also has an MCP client integration, meaning you can turn any MCP server into a set of tools that can be used by an agent. You can see this in `mcp-client.py`, where we use the `BasicMCPClient` to connect to our local MCP server.
-
-For simplicity of demo, we are using the same MCP server we just set up above. Ordinarily, you would not use MCP to connect LlamaCloud to a LlamaIndex agent, you would use [QueryEngineTool](https://docs.llamaindex.ai/en/stable/examples/agent/openai_agent_with_query_engine/) and pass it directly to the agent.
-
-### Set up your MCP server
-
-To provide a local MCP server that can be used by an HTTP client, we need to slightly modify `mcp-server.py` to use the `run_sse_async` method instead of `run`. You can find this in `mcp-http-server.py`.
-
-```python
-mcp = FastMCP('llama-index-server',port=8000)
-
-asyncio.run(mcp.run_sse_async())
-```
-
-### Get your tools from the MCP server
-
-```python
-mcp_client = BasicMCPClient("http://localhost:8000/sse")
-mcp_tool_spec = McpToolSpec(
-    client=mcp_client,
-    # Optional: Filter the tools by name
-    # allowed_tools=["tool1", "tool2"],
-)
-
-tools = mcp_tool_spec.to_tool_list()
-```
-
-### Create an agent and ask a question
-
-```python
-llm = OpenAI(model="gpt-4o-mini")
-
-agent = FunctionAgent(
-    tools=tools,
-    llm=llm,
-    system_prompt="You are an agent that knows how to build agents in LlamaIndex.",
-)
-
-async def run_agent():
-    response = await agent.run("How do I instantiate an agent in LlamaIndex?")
-    print(response)
-
-if __name__ == "__main__":
-    asyncio.run(run_agent())
-```
-
-You're all set! You can now use the agent to answer questions from your LlamaCloud index.
+Restart Claude Desktop after editing the config and you’ll see the MCP server listed under the tool icon. The screenshot from the upstream README (`./claude.png`) still applies if you need a visual cue.

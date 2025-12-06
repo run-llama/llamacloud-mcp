@@ -1,27 +1,20 @@
 import click
 import os
 
-from mcp.server.fastmcp import Context, FastMCP
+from typing import Any, Awaitable, Callable, Optional
+
 from llama_cloud_services import LlamaExtract
 from llama_index.indices.managed.llama_cloud import LlamaCloudIndex
-from typing import Awaitable, Callable, Optional
-
-
-mcp = FastMCP("llama-index-server")
+from mcp.server.fastmcp import Context, FastMCP
 
 
 def make_index_tool(
-    index_name: str, project_id: Optional[str], org_id: Optional[str]
+    index_name: str, retriever: Any
 ) -> Callable[[Context, str], Awaitable[str]]:
     async def tool(ctx: Context, query: str) -> str:
         try:
             await ctx.info(f"Querying index: {index_name} with query: {query}")
-            index = LlamaCloudIndex(
-                name=index_name,
-                project_id=project_id,
-                organization_id=org_id,
-            )
-            response = await index.as_retriever().aretrieve(query)
+            response = await retriever.aretrieve(query)
             return str(response)
         except Exception as e:
             await ctx.error(f"Error querying index: {str(e)}")
@@ -31,7 +24,7 @@ def make_index_tool(
 
 
 def make_extract_tool(
-    agent_name: str, project_id: Optional[str], org_id: Optional[str]
+    agent_name: str, extract_agent: Any
 ) -> Callable[[Context, str], Awaitable[str]]:
     async def tool(ctx: Context, file_path: str) -> str:
         """Extract data using a LlamaExtract Agent from the given file."""
@@ -39,11 +32,6 @@ def make_extract_tool(
             await ctx.info(
                 f"Extracting data using agent: {agent_name} with file path: {file_path}"
             )
-            llama_extract = LlamaExtract(
-                organization_id=org_id,
-                project_id=project_id,
-            )
-            extract_agent = llama_extract.get_agent(name=agent_name)
             result = await extract_agent.aextract(file_path)
             return str(result)
         except Exception as e:
@@ -83,6 +71,43 @@ def make_extract_tool(
     help='Transport to run the MCP server on. One of "stdio", "sse", "streamable-http".',
 )
 @click.option("--api-key", required=False, type=str, help="API key for LlamaCloud")
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    help="Host binding when using SSE or streamable HTTP transports.",
+)
+@click.option(
+    "--port",
+    default=8000,
+    show_default=True,
+    type=int,
+    help="Port binding when using SSE transport.",
+)
+@click.option(
+    "--mount-path",
+    default="/",
+    show_default=True,
+    help="Base mount path for HTTP transports.",
+)
+@click.option(
+    "--sse-path",
+    default="/sse",
+    show_default=True,
+    help="Endpoint path for SSE connections.",
+)
+@click.option(
+    "--message-path",
+    default="/messages/",
+    show_default=True,
+    help="Endpoint path for SSE message polling.",
+)
+@click.option(
+    "--streamable-http-path",
+    default="/mcp",
+    show_default=True,
+    help="Endpoint path when using streamable HTTP.",
+)
 def main(
     indexes: Optional[list[str]],
     extract_agents: Optional[list[str]],
@@ -90,6 +115,12 @@ def main(
     org_id: Optional[str],
     transport: str,
     api_key: Optional[str],
+    host: str,
+    port: int,
+    mount_path: str,
+    sse_path: str,
+    message_path: str,
+    streamable_http_path: str,
 ) -> None:
     api_key = api_key or os.getenv("LLAMA_CLOUD_API_KEY")
     if not api_key:
@@ -121,14 +152,45 @@ def main(
             name, description = agent.split(":", 1)
             extract_agent_info.append((name, description))
 
-    # Dynamically register a tool for each index
+    if not index_info and not extract_agent_info:
+        raise click.BadParameter(
+            "Please provide at least one --index or --extract-agent option."
+        )
+
+    mcp = FastMCP(
+        "llama-index-server",
+        host=host,
+        port=port,
+        mount_path=mount_path,
+        sse_path=sse_path,
+        message_path=message_path,
+        streamable_http_path=streamable_http_path,
+    )
+
+    # Dynamically register a tool for each index using cached retrievers
     for name, description in index_info:
-        tool_func = make_index_tool(name, project_id, org_id)
+        index = LlamaCloudIndex(
+            name=name,
+            project_id=project_id,
+            organization_id=org_id,
+        )
+        retriever = index.as_retriever()
+        tool_func = make_index_tool(name, retriever)
         mcp.tool(name=f"query_{name}", description=description)(tool_func)
+
+    llama_extract_client: Optional[LlamaExtract] = None
+    if extract_agent_info:
+        llama_extract_client = LlamaExtract(
+            organization_id=org_id,
+            project_id=project_id,
+        )
 
     # Dynamically register a tool for each extract agent, if any
     for name, description in extract_agent_info:
-        tool_func = make_extract_tool(name, project_id, org_id)
+        if not llama_extract_client:
+            raise RuntimeError("LlamaExtract client failed to initialize.")
+        extract_agent = llama_extract_client.get_agent(name=name)
+        tool_func = make_extract_tool(name, extract_agent)
         mcp.tool(name=f"extract_{name}", description=description)(tool_func)
 
     mcp.run(transport=transport)
